@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CalcTape Audit - BPK RI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>tailwind.config={theme:{extend:{colors:{
+        primary:{50:'#f0f4ff',100:'#dbe4ff',500:'#5c7cfa',600:'#4c6ef5',700:'#4263eb'},
+        mint:{50:'#e6fcf5',500:'#20c997'},
+        coral:{50:'#fff5f5',500:'#ff6b6b'},
+    }}}}</script>
+    <style>
+        body{font-family:'Plus Jakarta Sans',sans-serif}
+        .mono{font-family:'JetBrains Mono',monospace}
+        .gradient-text{background:linear-gradient(135deg,#4c6ef5,#5c7cfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .tape-row{transition:background .15s}
+        .tape-row:hover{background:#f8f9fa}
+        .tape-row.subtotal{background:#edf2ff;font-weight:700}
+        .tape-row.grandtotal{background:#4c6ef5;color:#fff;font-weight:800}
+        .tape-input{background:transparent;outline:none;text-align:right;font-family:'JetBrains Mono',monospace}
+        .tape-input:focus{background:#fff;box-shadow:0 0 0 2px #4c6ef5;border-radius:4px}
+        .comment-input{background:transparent;outline:none;font-size:.75rem;color:#868e96}
+        .comment-input:focus{background:#fff;box-shadow:0 0 0 1px #bac8ff;border-radius:4px}
+        .op-btn{width:40px;height:36px;border-radius:8px;font-weight:700;font-size:1rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+        .op-btn:hover{transform:scale(1.05)}
+        .op-btn.active{box-shadow:0 0 0 2px #4c6ef5}
+        #tapeContainer{max-height:calc(100vh - 320px);overflow-y:auto}
+        #tapeContainer::-webkit-scrollbar{width:6px}
+        #tapeContainer::-webkit-scrollbar-thumb{background:#dbe4ff;border-radius:3px}
+        .fade-in{animation:fadeIn .2s ease-out}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+        @media print{header,.no-print{display:none!important}#tapeContainer{max-height:none!important;overflow:visible!important}}
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <header class="bg-white border-b border-gray-100 sticky top-0 z-50 no-print">
+        <div class="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <img src="/static/bpk-logo.png" alt="BPK" class="w-8 h-8 object-contain">
+                <div>
+                    <h1 class="text-sm font-bold gradient-text">CalcTape Audit</h1>
+                    <p class="text-[10px] text-gray-400">by Bashid Effendi</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="newTape()" title="Tape Baru" class="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg></button>
+                <button onclick="saveTape()" title="Simpan (Ctrl+S)" class="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg></button>
+                <button onclick="loadTape()" title="Buka File" class="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg></button>
+                <button onclick="exportExcel()" title="Export Excel" class="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></button>
+                <button onclick="window.print()" title="Print" class="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto px-4 py-4">
+        <!-- Tape Title -->
+        <div class="mb-3 flex items-center gap-2">
+            <input type="text" id="tapeTitle" value="Perhitungan Audit" class="text-lg font-bold text-gray-800 bg-transparent outline-none border-b-2 border-transparent focus:border-primary-400 flex-1" placeholder="Judul perhitungan...">
+            <span id="tapeDate" class="text-xs text-gray-400 mono"></span>
+        </div>
+
+        <!-- Tape -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <!-- Header -->
+            <div class="grid grid-cols-12 gap-0 bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wider font-semibold px-3 py-2">
+                <div class="col-span-1 text-center">#</div>
+                <div class="col-span-4">Keterangan</div>
+                <div class="col-span-1 text-center">Op</div>
+                <div class="col-span-3 text-right">Nilai</div>
+                <div class="col-span-3 text-right">Running Total</div>
+            </div>
+
+            <!-- Tape rows -->
+            <div id="tapeContainer"></div>
+
+            <!-- Grand Total -->
+            <div class="bg-primary-600 text-white px-3 py-3 grid grid-cols-12 gap-0 items-center">
+                <div class="col-span-6 font-bold text-sm">TOTAL</div>
+                <div class="col-span-6 text-right font-extrabold text-lg mono" id="grandTotal">0</div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 no-print">
+            <div class="flex gap-2 items-end">
+                <div class="flex-1">
+                    <label class="text-[10px] text-gray-400 font-semibold uppercase">Keterangan</label>
+                    <input type="text" id="inputComment" placeholder="Label/keterangan..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-primary-400 outline-none" onkeydown="if(event.key==='Tab'){event.preventDefault();document.getElementById('inputValue').focus()}">
+                </div>
+                <div class="w-32">
+                    <label class="text-[10px] text-gray-400 font-semibold uppercase">Nilai</label>
+                    <input type="text" id="inputValue" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-right mono focus:border-primary-400 outline-none" onkeydown="handleInputKey(event)">
+                </div>
+                <div class="flex gap-1">
+                    <button onclick="addRow('+')" class="op-btn bg-mint-50 text-green-600 hover:bg-green-100">+</button>
+                    <button onclick="addRow('-')" class="op-btn bg-coral-50 text-red-500 hover:bg-red-100">−</button>
+                    <button onclick="addRow('*')" class="op-btn bg-primary-50 text-primary-600 hover:bg-primary-100">×</button>
+                    <button onclick="addRow('/')" class="op-btn bg-amber-50 text-amber-600 hover:bg-amber-100">÷</button>
+                    <button onclick="addSubtotal()" class="op-btn bg-primary-100 text-primary-700 hover:bg-primary-200 text-xs w-auto px-2" title="Subtotal (Ctrl+Enter)">ST</button>
+                </div>
+            </div>
+            <div class="mt-2 flex gap-2 flex-wrap text-[10px] text-gray-400">
+                <span>Enter = Tambah (+)</span>
+                <span>|</span>
+                <span>Shift+Enter = Kurang (−)</span>
+                <span>|</span>
+                <span>Ctrl+Enter = Subtotal</span>
+                <span>|</span>
+                <span>Ctrl+S = Simpan</span>
+                <span>|</span>
+                <span>Ctrl+Z = Undo</span>
+            </div>
+        </div>
+
+        <!-- Saved Tapes -->
+        <div class="mt-4 no-print">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-bold text-gray-600">Tape Tersimpan</h3>
+                <button onclick="clearAllSaved()" class="text-[10px] text-red-400 hover:text-red-600">Hapus Semua</button>
+            </div>
+            <div id="savedList" class="space-y-1"></div>
+        </div>
+    </main>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+let tape = [];      // [{id, comment, op, value, type}]  type: 'entry'|'subtotal'
+let undoStack = [];
+let tapeId = Date.now().toString(36);
+
+// ============================================================
+// CORE FUNCTIONS
+// ============================================================
+function addRow(op) {
+    const commentEl = document.getElementById('inputComment');
+    const valueEl = document.getElementById('inputValue');
+    const val = parseFloat(valueEl.value.replace(/[^0-9.\-]/g, ''));
+    if (isNaN(val) && !valueEl.value.trim()) return;
+
+    undoStack.push(JSON.stringify(tape));
+    tape.push({
+        id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+        comment: commentEl.value.trim(),
+        op: op,
+        value: isNaN(val) ? 0 : val,
+        type: 'entry',
+    });
+
+    commentEl.value = '';
+    valueEl.value = '';
+    valueEl.focus();
+    renderTape();
+    autoSave();
+}
+
+function addSubtotal() {
+    undoStack.push(JSON.stringify(tape));
+    const running = calcRunningTotal();
+    const lastTotal = running.length ? running[running.length - 1] : 0;
+    tape.push({
+        id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+        comment: 'Subtotal',
+        op: '=',
+        value: lastTotal,
+        type: 'subtotal',
+    });
+    renderTape();
+    autoSave();
+}
+
+function deleteRow(id) {
+    undoStack.push(JSON.stringify(tape));
+    tape = tape.filter(r => r.id !== id);
+    renderTape();
+    autoSave();
+}
+
+function updateRow(id, field, value) {
+    const row = tape.find(r => r.id === id);
+    if (!row) return;
+    if (field === 'value') {
+        const num = parseFloat(value.replace(/[^0-9.\-]/g, ''));
+        row.value = isNaN(num) ? 0 : num;
+    } else if (field === 'comment') {
+        row.comment = value;
+    } else if (field === 'op') {
+        row.op = value;
+    }
+    renderTape();
+    autoSave();
+}
+
+function undo() {
+    if (!undoStack.length) return;
+    tape = JSON.parse(undoStack.pop());
+    renderTape();
+    autoSave();
+}
+
+// ============================================================
+// CALCULATION
+// ============================================================
+function calcRunningTotal() {
+    let running = [];
+    let total = 0;
+    for (const row of tape) {
+        if (row.type === 'subtotal') {
+            running.push(total);
+            continue;
+        }
+        switch (row.op) {
+            case '+': total += row.value; break;
+            case '-': total -= row.value; break;
+            case '*': total *= row.value; break;
+            case '/': total = row.value !== 0 ? total / row.value : total; break;
+        }
+        running.push(total);
+    }
+    return running;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderTape() {
+    const container = document.getElementById('tapeContainer');
+    const running = calcRunningTotal();
+
+    if (!tape.length) {
+        container.innerHTML = '<div class="text-center py-12 text-gray-300 text-sm">Tape kosong. Mulai masukkan angka di bawah.</div>';
+        document.getElementById('grandTotal').textContent = '0';
+        return;
+    }
+
+    let html = '';
+    tape.forEach((row, i) => {
+        const rt = running[i] || 0;
+        const isSubtotal = row.type === 'subtotal';
+        const cls = isSubtotal ? 'tape-row subtotal' : 'tape-row';
+        const opSymbol = {'+':`<span class="text-green-600">+</span>`,'-':`<span class="text-red-500">−</span>`,'*':`<span class="text-primary-600">×</span>`,'/':`<span class="text-amber-600">÷</span>`,'=':`<span class="text-primary-700">=</span>`}[row.op] || row.op;
+
+        html += `<div class="${cls} grid grid-cols-12 gap-0 px-3 py-1.5 border-b border-gray-50 items-center fade-in" data-id="${row.id}">
+            <div class="col-span-1 text-center text-[10px] text-gray-300 mono">${i+1}</div>
+            <div class="col-span-4">
+                <input type="text" value="${esc(row.comment)}" class="comment-input w-full px-1 py-0.5 ${isSubtotal?'font-bold text-primary-700':''}" onchange="updateRow('${row.id}','comment',this.value)" placeholder="keterangan...">
+            </div>
+            <div class="col-span-1 text-center">
+                ${isSubtotal ? opSymbol : `<select class="bg-transparent outline-none text-center text-sm font-bold cursor-pointer" onchange="updateRow('${row.id}','op',this.value)">
+                    <option value="+" ${row.op==='+'?'selected':''}>+</option>
+                    <option value="-" ${row.op==='-'?'selected':''}>−</option>
+                    <option value="*" ${row.op==='*'?'selected':''}>×</option>
+                    <option value="/" ${row.op==='/'?'selected':''}>÷</option>
+                </select>`}
+            </div>
+            <div class="col-span-3 text-right">
+                ${isSubtotal ? '' : `<input type="text" value="${fmtNum(row.value)}" class="tape-input w-full px-1 py-0.5 text-sm" onchange="updateRow('${row.id}','value',this.value)" onfocus="this.value=row_value(this)" onblur="this.value=fmtNum(parseFloat(this.value.replace(/[^0-9.\\-]/g,''))||0)">`}
+            </div>
+            <div class="col-span-2 text-right mono text-sm ${rt<0?'text-red-500':'text-gray-700'} font-semibold">${fmtRp(rt)}</div>
+            <div class="col-span-1 text-right">
+                <button onclick="deleteRow('${row.id}')" class="text-gray-300 hover:text-red-500 p-1" title="Hapus"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+    container.scrollTop = container.scrollHeight;
+
+    const finalTotal = running.length ? running[running.length - 1] : 0;
+    document.getElementById('grandTotal').textContent = fmtRp(finalTotal);
+}
+
+// ============================================================
+// KEYBOARD
+// ============================================================
+function handleInputKey(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.ctrlKey) { addSubtotal(); }
+        else if (e.shiftKey) { addRow('-'); }
+        else { addRow('+'); }
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+    if (e.ctrlKey && e.key === 's') { e.preventDefault(); saveTape(); }
+});
+
+// ============================================================
+// SAVE / LOAD (localStorage)
+// ============================================================
+function autoSave() {
+    localStorage.setItem('calctape_current', JSON.stringify({
+        id: tapeId,
+        title: document.getElementById('tapeTitle').value,
+        tape: tape,
+        date: new Date().toISOString(),
+    }));
+}
+
+function saveTape() {
+    const title = document.getElementById('tapeTitle').value || 'Untitled';
+    const saved = JSON.parse(localStorage.getItem('calctape_saved') || '[]');
+    const existing = saved.findIndex(s => s.id === tapeId);
+    const data = {
+        id: tapeId,
+        title: title,
+        tape: tape,
+        date: new Date().toISOString(),
+    };
+    if (existing >= 0) saved[existing] = data;
+    else saved.unshift(data);
+    localStorage.setItem('calctape_saved', JSON.stringify(saved.slice(0, 50)));
+    renderSavedList();
+    showToast('Tersimpan!');
+}
+
+function loadTape() {
+    renderSavedList();
+}
+
+function loadSavedTape(id) {
+    const saved = JSON.parse(localStorage.getItem('calctape_saved') || '[]');
+    const item = saved.find(s => s.id === id);
+    if (!item) return;
+    tapeId = item.id;
+    tape = item.tape || [];
+    document.getElementById('tapeTitle').value = item.title || '';
+    renderTape();
+}
+
+function deleteSavedTape(id) {
+    let saved = JSON.parse(localStorage.getItem('calctape_saved') || '[]');
+    saved = saved.filter(s => s.id !== id);
+    localStorage.setItem('calctape_saved', JSON.stringify(saved));
+    renderSavedList();
+}
+
+function newTape() {
+    tapeId = Date.now().toString(36);
+    tape = [];
+    undoStack = [];
+    document.getElementById('tapeTitle').value = 'Perhitungan Audit';
+    renderTape();
+    autoSave();
+}
+
+function clearAllSaved() {
+    if (!confirm('Hapus semua tape tersimpan?')) return;
+    localStorage.removeItem('calctape_saved');
+    renderSavedList();
+}
+
+function renderSavedList() {
+    const saved = JSON.parse(localStorage.getItem('calctape_saved') || '[]');
+    const el = document.getElementById('savedList');
+    if (!saved.length) {
+        el.innerHTML = '<p class="text-xs text-gray-300 text-center py-2">Belum ada tape tersimpan</p>';
+        return;
+    }
+    el.innerHTML = saved.map(s => {
+        const d = new Date(s.date);
+        const dateStr = d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        const rows = (s.tape || []).length;
+        const running = calcTotalFromTape(s.tape);
+        return `<div class="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-3 py-2 hover:bg-primary-50/30 cursor-pointer transition-all" onclick="loadSavedTape('${s.id}')">
+            <div>
+                <p class="text-sm font-semibold text-gray-700">${esc(s.title)}</p>
+                <p class="text-[10px] text-gray-400">${dateStr} · ${rows} baris</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-bold mono ${running<0?'text-red-500':'text-primary-600'}">${fmtRp(running)}</span>
+                <button onclick="event.stopPropagation();deleteSavedTape('${s.id}')" class="text-gray-300 hover:text-red-500 p-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function calcTotalFromTape(t) {
+    let total = 0;
+    (t||[]).forEach(r => {
+        if (r.type === 'subtotal') return;
+        switch(r.op) {
+            case '+': total += r.value; break;
+            case '-': total -= r.value; break;
+            case '*': total *= r.value; break;
+            case '/': total = r.value ? total / r.value : total; break;
+        }
+    });
+    return total;
+}
+
+// ============================================================
+// EXPORT EXCEL (CSV for simplicity)
+// ============================================================
+function exportExcel() {
+    const running = calcRunningTotal();
+    const title = document.getElementById('tapeTitle').value || 'CalcTape';
+    let csv = 'No,Keterangan,Operasi,Nilai,Running Total\n';
+    tape.forEach((r, i) => {
+        csv += `${i+1},"${r.comment}",${r.op},${r.value},${running[i]||0}\n`;
+    });
+    const blob = new Blob(['\uFEFF' + csv], {type: 'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = title.replace(/[^a-zA-Z0-9]/g, '_') + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Exported!');
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function fmtNum(n) {
+    if (n === 0) return '0';
+    return Math.round(n * 100) / 100 !== Math.round(n) ? n.toFixed(2) : n.toLocaleString('id-ID');
+}
+function fmtRp(n) {
+    if (n === 0) return '0';
+    const abs = Math.abs(n);
+    const formatted = Math.round(abs).toLocaleString('id-ID');
+    return n < 0 ? '(' + formatted + ')' : formatted;
+}
+function esc(s) { return s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function row_value(el) {
+    const id = el.closest('[data-id]').dataset.id;
+    const row = tape.find(r => r.id === id);
+    return row ? String(row.value) : '0';
+}
+function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'fixed bottom-4 right-4 bg-primary-600 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-lg fade-in z-50';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1500);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.getElementById('tapeDate').textContent = new Date().toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+// Restore current tape
+const current = JSON.parse(localStorage.getItem('calctape_current') || 'null');
+if (current) {
+    tapeId = current.id || tapeId;
+    tape = current.tape || [];
+    document.getElementById('tapeTitle').value = current.title || 'Perhitungan Audit';
+}
+renderTape();
+renderSavedList();
+document.getElementById('inputValue').focus();
+</script>
+</body>
+</html>
