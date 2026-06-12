@@ -6,8 +6,10 @@ import type { DetectedCalc, ExtractedDoc } from "@/lib/types";
 import { extractDocx } from "@/lib/docx-extract";
 import { detectAllInDoc, buildCalcDocument } from "@/lib/detect-pipeline";
 import { renderCalcDocument, fmtNumber } from "@/lib/calc-format";
+import { aiDetect, compareDetections, type Comparison } from "@/lib/ai-detect";
 
 type Status = "idle" | "parsing" | "ready" | "error";
+type AiStatus = "idle" | "running" | "done" | "error";
 
 export default function AutoImportPage() {
   const [status, setStatus] = useState<Status>("idle");
@@ -18,6 +20,11 @@ export default function AutoImportPage() {
   const [filter, setFilter] = useState<"all" | "percentage" | "sum" | "table-vertical">(
     "all",
   );
+  // --- AI (Gemini) comparison state ---
+  const [aiStatus, setAiStatus] = useState<AiStatus>("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiModel, setAiModel] = useState<string>("");
+  const [comparison, setComparison] = useState<Comparison | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(async (file: File) => {
@@ -36,12 +43,31 @@ export default function AutoImportPage() {
       const calcs = detectAllInDoc(doc);
       setExtracted(doc);
       setDetected(calcs);
+      // reset AI state buat file baru
+      setAiStatus("idle");
+      setAiError(null);
+      setComparison(null);
       setStatus("ready");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal parse dokumen");
       setStatus("error");
     }
   }, []);
+
+  const runAiCompare = useCallback(async () => {
+    if (!extracted) return;
+    setAiStatus("running");
+    setAiError(null);
+    try {
+      const result = await aiDetect(extracted);
+      setAiModel(result.model);
+      setComparison(compareDetections(detected, result.calcs));
+      setAiStatus("done");
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "AI detect gagal");
+      setAiStatus("error");
+    }
+  }, [extracted, detected]);
 
   const onDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -176,6 +202,9 @@ export default function AutoImportPage() {
                     setDetected([]);
                     setExtracted(null);
                     setFileName("");
+                    setAiStatus("idle");
+                    setComparison(null);
+                    setAiError(null);
                   }}
                   className="btn-sm bg-gray-100 text-gray-600 hover:bg-gray-200"
                 >
@@ -193,6 +222,91 @@ export default function AutoImportPage() {
                   color={stats.off > 0 ? "text-red-600" : "text-gray-400"}
                 />
               </div>
+            </div>
+
+            {/* AI (Gemini) comparison */}
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="font-bold text-indigo-900 text-sm flex items-center gap-2">
+                    ✨ Bandingin dengan Gemini
+                    {aiModel && (
+                      <span className="text-[10px] font-normal text-indigo-500">
+                        {aiModel}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-indigo-600/80 mt-0.5">
+                    AI cari perhitungan yang regex kelewat. Nama/NIK/penyedia
+                    di-redaksi dulu sebelum dikirim.
+                  </div>
+                </div>
+                <button
+                  onClick={runAiCompare}
+                  disabled={aiStatus === "running"}
+                  className={`btn-sm ${
+                    aiStatus === "running"
+                      ? "bg-indigo-200 text-indigo-500 cursor-wait"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700"
+                  }`}
+                >
+                  {aiStatus === "running"
+                    ? "Menganalisis…"
+                    : aiStatus === "done"
+                      ? "Jalankan lagi"
+                      : "Jalankan Gemini"}
+                </button>
+              </div>
+
+              {aiStatus === "error" && (
+                <div className="mt-3 text-xs bg-red-50 border border-red-200 rounded-lg p-3 text-red-700">
+                  <div className="font-semibold">Gagal:</div>
+                  <div>{aiError}</div>
+                  {aiError?.includes("GEMINI_API_KEY") && (
+                    <div className="mt-1 text-red-500">
+                      → Tambah <span className="font-mono">GEMINI_API_KEY</span>{" "}
+                      ke <span className="font-mono">.env.local</span> lalu
+                      restart server.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {comparison && aiStatus === "done" && (
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  <CompareStat
+                    label="Regex saja"
+                    sub="Gemini gak nemu"
+                    value={comparison.regexOnly.length}
+                    color="text-blue-600"
+                  />
+                  <CompareStat
+                    label="Keduanya"
+                    sub="Sama-sama nemu"
+                    value={comparison.both.length}
+                    color="text-green-600"
+                  />
+                  <CompareStat
+                    label="Gemini saja"
+                    sub="Regex kelewat"
+                    value={comparison.geminiOnly.length}
+                    color="text-purple-600"
+                  />
+                </div>
+              )}
+
+              {comparison && comparison.geminiOnly.length > 0 && (
+                <div className="mt-4">
+                  <div className="text-[11px] font-bold text-purple-700 uppercase tracking-wide mb-2">
+                    Yang cuma Gemini nemu (regex kelewat) — perlu kamu review
+                  </div>
+                  <div className="space-y-2">
+                    {comparison.geminiOnly.map((d, i) => (
+                      <DetectedCard key={`g${i}`} detected={d} aiTag />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Filter */}
@@ -258,7 +372,35 @@ function Stat({
   );
 }
 
-function DetectedCard({ detected }: { detected: DetectedCalc }) {
+function CompareStat({
+  label,
+  sub,
+  value,
+  color,
+}: {
+  label: string;
+  sub: string;
+  value: number;
+  color?: string;
+}) {
+  return (
+    <div className="bg-white/70 rounded-lg p-3 text-center">
+      <div className={`text-2xl font-bold ${color ?? "text-gray-800"}`}>
+        {value}
+      </div>
+      <div className="text-[11px] font-semibold text-gray-700">{label}</div>
+      <div className="text-[9px] text-gray-400">{sub}</div>
+    </div>
+  );
+}
+
+function DetectedCard({
+  detected,
+  aiTag,
+}: {
+  detected: DetectedCalc;
+  aiTag?: boolean;
+}) {
   const computed = computeFor(detected);
   const cocok = Math.abs(computed - detected.expected) < 0.01;
   const kindLabel: Record<DetectedCalc["kind"], string> = {
@@ -271,11 +413,16 @@ function DetectedCard({ detected }: { detected: DetectedCalc }) {
   return (
     <div
       className={`bg-white rounded-xl border p-4 ${
-        cocok ? "border-green-200" : "border-red-200"
+        aiTag ? "border-purple-200" : cocok ? "border-green-200" : "border-red-200"
       }`}
     >
       <div className="flex items-start justify-between mb-2">
         <div>
+          {aiTag && (
+            <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded mr-2">
+              ✨ AI
+            </span>
+          )}
           <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mr-2">
             {kindLabel[detected.kind]}
           </span>
