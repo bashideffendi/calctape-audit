@@ -79,7 +79,9 @@ async function callClaude(content: string, modelId: string): Promise<AiCalc[]> {
   });
   const msg = await client.messages.create({
     model: modelId,
-    max_tokens: 8000,
+    // Gede: LHP bisa puluhan perhitungan. 8k kekecilan → tool-call kepotong →
+    // JSON parsial → hasil kosong. 16k aman buat ~150 calc.
+    max_tokens: 16000,
     temperature: 0,
     system: [
       // Prompt caching: instruksi statis di-cache (hemat kalau dipanggil berkali-kali).
@@ -97,7 +99,15 @@ async function callClaude(content: string, modelId: string): Promise<AiCalc[]> {
     messages: [{ role: "user", content }],
   });
   const toolUse = msg.content.find((b) => b.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") return [];
+  if (!toolUse || toolUse.type !== "tool_use") {
+    if (msg.stop_reason === "max_tokens") {
+      throw new ProviderError(
+        "Output Claude kepotong (max_tokens). Dokumen kebanyakan perhitungan — coba pisah / naikin limit.",
+        502,
+      );
+    }
+    return [];
+  }
   return sanitizeCalcs(toolUse.input);
 }
 

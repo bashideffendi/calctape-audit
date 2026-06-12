@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# diagnostic & test files (jangan commit)
+_*.mts
+public/_test.docx
+*.docx
