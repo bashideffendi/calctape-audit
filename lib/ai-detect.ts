@@ -13,10 +13,23 @@ interface AiResponse {
   usage?: { promptTokenCount?: number; candidatesTokenCount?: number } | null;
 }
 
-/** Bangun payload teks ter-redaksi dari ExtractedDoc. */
+/**
+ * Bangun payload teks ter-redaksi dari ExtractedDoc — paragraf + TABEL.
+ *
+ * CATATAN (hasil benchmark): sempat dicoba narasi-only (skip tabel) buat hemat
+ * token — TAPI coverage anjlok separuh (76→33 temuan). Ternyata AI ekstrak
+ * banyak perhitungan DARI DALAM tabel (total per-baris, cross-check antar
+ * kolom) yang beda dari sum kolom yang regex lakuin. Jadi tabel WAJIB dikirim.
+ * Trade-off: full payload ~2x lebih lambat tapi coverage 2x lebih lengkap —
+ * buat tool telstruk, completeness menang.
+ *
+ * Optimasi aman yang dipertahankan: skip paragraf tanpa angka (gak mungkin
+ * ada perhitungan di situ).
+ */
 export function buildRedactedPayload(doc: ExtractedDoc): string {
   const parts: string[] = [];
   for (const p of doc.paragraphs) {
+    if (!/\d/.test(p.text)) continue; // skip paragraf tanpa angka
     parts.push(`[P${p.index + 1}] ${redactText(p.text)}`);
   }
   for (const t of doc.tables) {
