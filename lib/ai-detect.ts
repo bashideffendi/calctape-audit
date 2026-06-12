@@ -55,7 +55,19 @@ export async function aiDetect(doc: ExtractedDoc, modelId: string): Promise<AiDe
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content, model: modelId }),
   });
-  const data: AiResponse = await res.json();
+  // Graceful: server kadang balik HTML (mis. 504 timeout), bukan JSON.
+  const raw = await res.text();
+  let data: AiResponse;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    if (res.status === 504 || /timeout/i.test(raw)) {
+      throw new Error(
+        "AI timeout di server — dokumen kebesaran / model kelamaan. Coba model lebih cepat atau jalankan lokal.",
+      );
+    }
+    throw new Error(`AI gagal (HTTP ${res.status}). Respons server bukan JSON.`);
+  }
   if (!res.ok) {
     throw new Error(data.error || `AI detect gagal (${res.status})`);
   }

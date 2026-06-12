@@ -22,7 +22,9 @@ import {
 } from "@/lib/ai-shared";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+// Vercel Pro: limit sampai 300s. AI full LHP butuh ~90-152s (Flash paling
+// lambat). 120 kekecilan → 504. 300 kasih headroom aman.
+export const maxDuration = 300;
 
 // --- Gemini ---
 const GEMINI_SCHEMA = {
