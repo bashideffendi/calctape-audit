@@ -22,7 +22,7 @@ export function detectAllInDoc(doc: ExtractedDoc): DetectedCalc[] {
 
   // Tables
   for (const t of doc.tables) {
-    all.push(...detectTableSums(t.rows, t.index));
+    all.push(...detectTableSums(t.rows, t.index, t.caption));
   }
 
   return all;

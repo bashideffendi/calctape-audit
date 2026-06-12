@@ -9,9 +9,24 @@
 import mammoth from "mammoth";
 import type { ExtractedDoc, ExtractedTable } from "./types";
 
+/**
+ * Opsi mammoth: SKIP gambar.
+ * LHP BPK isinya banyak gambar (logo, foto cek fisik) — docx bisa >6 MB.
+ * Default mammoth nge-encode tiap gambar jadi base64 inline → HTML bengkak +
+ * freeze main thread. Buat telstruk kita cuma butuh teks + tabel, jadi gambar
+ * di-skip total (gak baca image buffer sama sekali).
+ */
+// convertImage yang DROP gambar tanpa baca buffer-nya (gak encode base64).
+// imgElement() helper tetep manggil image.read() → lambat; converter mentah ini
+// langsung balikin array kosong, jadi gambar gak pernah di-decode.
+const MAMMOTH_OPTS = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  convertImage: ((() => Promise.resolve([])) as any),
+} as const;
+
 /** Convert ArrayBuffer ke ExtractedDoc dengan ordering paragraf + tabel. */
 export async function extractDocx(buffer: ArrayBuffer): Promise<ExtractedDoc> {
-  const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+  const result = await mammoth.convertToHtml({ arrayBuffer: buffer }, MAMMOTH_OPTS);
   const html = result.value;
 
   // Browser: pakai DOMParser
@@ -63,7 +78,7 @@ export async function extractDocx(buffer: ArrayBuffer): Promise<ExtractedDoc> {
 
 /** Parse Word .docx di server (Node.js) tanpa DOMParser. */
 export async function extractDocxServer(buffer: Buffer): Promise<ExtractedDoc> {
-  const result = await mammoth.convertToHtml({ buffer });
+  const result = await mammoth.convertToHtml({ buffer }, MAMMOTH_OPTS);
   const html = result.value;
 
   // Simple HTML walker tanpa external DOMParser (pakai regex matching).
