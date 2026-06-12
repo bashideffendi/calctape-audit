@@ -1,28 +1,31 @@
 /**
  * POST /api/ai-detect
  *
- * Server-side route buat manggil Gemini. API key cuma di env server (gak pernah
- * ke browser). Input = teks LHP yang UDAH diredaksi PII-nya di client.
+ * Dispatch ke provider AI sesuai pilihan user (Gemini / Claude, 2 tier each).
+ * API key cuma di env server (gak pernah ke browser). Input = teks LHP yang
+ * UDAH diredaksi PII-nya di client.
  *
- * Gemini cuma tugasnya IDENTIFIKASI perhitungan ("ada A + B = C di sini"),
- * BUKAN ngitung. Aritmatika tetap diverifikasi JavaScript di client.
+ * Model cuma IDENTIFIKASI perhitungan, BUKAN ngitung. Aritmatika tetap
+ * diverifikasi JavaScript di client.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
+import { getModel, DEFAULT_MODEL_ID } from "@/lib/ai-models";
+import {
+  SYSTEM_PROMPT,
+  CALC_JSON_SCHEMA,
+  sanitizeCalcs,
+  MAX_PAYLOAD_CHARS,
+  type AiCalc,
+} from "@/lib/ai-shared";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
-interface AiCalc {
-  kind: "percentage" | "sum" | "subtraction" | "multiplication";
-  location: string;
-  snippet: string;
-  operands: number[];
-  expected: number;
-}
-
-const RESPONSE_SCHEMA = {
+// --- Gemini ---
+const GEMINI_SCHEMA = {
   type: SchemaType.OBJECT,
   properties: {
     calcs: {
@@ -33,26 +36,11 @@ const RESPONSE_SCHEMA = {
           kind: {
             type: SchemaType.STRING,
             enum: ["percentage", "sum", "subtraction", "multiplication"],
-            description: "Jenis operasi aritmatika",
           },
-          location: {
-            type: SchemaType.STRING,
-            description: "Lokasi di dokumen, mis. nomor paragraf atau judul tabel",
-          },
-          snippet: {
-            type: SchemaType.STRING,
-            description: "Potongan kalimat asli yang memuat perhitungan",
-          },
-          operands: {
-            type: SchemaType.ARRAY,
-            items: { type: SchemaType.NUMBER },
-            description:
-              "Angka-angka operand. Untuk percentage: [pembilang, penyebut]. Untuk sum/subtraction/multiplication: angka-angka komponennya.",
-          },
-          expected: {
-            type: SchemaType.NUMBER,
-            description: "Hasil yang diklaim dokumen (angka, tanpa Rp/titik/persen)",
-          },
+          location: { type: SchemaType.STRING },
+          snippet: { type: SchemaType.STRING },
+          operands: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER } },
+          expected: { type: SchemaType.NUMBER },
         },
         required: ["kind", "location", "snippet", "operands", "expected"],
       },
@@ -61,28 +49,67 @@ const RESPONSE_SCHEMA = {
   required: ["calcs"],
 };
 
-const SYSTEM_PROMPT = `Kamu asisten auditor BPK RI. Tugasmu: identifikasi SEMUA perhitungan aritmatika yang DIKLAIM dalam excerpt Laporan Hasil Pemeriksaan (LHP) berikut, supaya bisa diverifikasi (telstruk).
+async function callGemini(content: string, modelId: string): Promise<AiCalc[]> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new ProviderError("GEMINI_API_KEY belum di-set di .env.local", 503);
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: modelId,
+    systemInstruction: SYSTEM_PROMPT,
+    generationConfig: {
+      temperature: 0,
+      responseMimeType: "application/json",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      responseSchema: GEMINI_SCHEMA as any,
+    },
+  });
+  const result = await model.generateContent(content);
+  const text = result.response.text();
+  return sanitizeCalcs(JSON.parse(text));
+}
 
-ATURAN:
-- Identifikasi perhitungan saja, JANGAN menghitung sendiri. Ekstrak operand + hasil yang diklaim dokumen apa adanya.
-- Jenis: "percentage" (X/Y*100), "sum" (A+B+C), "subtraction" (A-B), "multiplication" (A*B).
-- operands & expected = angka murni (buang "Rp", titik ribuan, simbol %). Desimal pakai titik. Contoh "Rp1.234.567,89" -> 1234567.89. "23,5%" -> 23.5.
-- Untuk percentage: operands = [pembilang, penyebut], expected = persen yang diklaim.
-- Fokus ke perhitungan yang BENAR-BENAR ada angkanya di teks. Kalau ragu, lewati.
-- JANGAN ulangi perhitungan yang trivial/tidak bermakna.
-- Teks sudah diredaksi ([NAMA], [PENYEDIA], [NIK]) — abaikan placeholder itu, fokus ke angka.
+// --- Claude ---
+async function callClaude(content: string, modelId: string): Promise<AiCalc[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new ProviderError("ANTHROPIC_API_KEY belum di-set di .env.local", 503);
+  const client = new Anthropic({
+    apiKey,
+    // Opsional: override endpoint (mis. proxy). Kosongin buat pakai default Anthropic.
+    baseURL: process.env.ANTHROPIC_BASE_URL || undefined,
+  });
+  const msg = await client.messages.create({
+    model: modelId,
+    max_tokens: 8000,
+    temperature: 0,
+    system: [
+      // Prompt caching: instruksi statis di-cache (hemat kalau dipanggil berkali-kali).
+      { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+    ],
+    tools: [
+      {
+        name: "lapor_perhitungan",
+        description: "Laporkan semua perhitungan aritmatika yang teridentifikasi di LHP.",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        input_schema: CALC_JSON_SCHEMA as any,
+      },
+    ],
+    tool_choice: { type: "tool", name: "lapor_perhitungan" },
+    messages: [{ role: "user", content }],
+  });
+  const toolUse = msg.content.find((b) => b.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") return [];
+  return sanitizeCalcs(toolUse.input);
+}
 
-Kembalikan JSON sesuai schema.`;
+class ProviderError extends Error {
+  status: number;
+  constructor(message: string, status = 502) {
+    super(message);
+    this.status = status;
+  }
+}
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "GEMINI_API_KEY belum di-set di server (.env.local)." },
-      { status: 503 },
-    );
-  }
-
   let body: { content?: string; model?: string };
   try {
     body = await req.json();
@@ -91,55 +118,30 @@ export async function POST(req: NextRequest) {
   }
 
   const content = (body.content ?? "").trim();
-  if (!content) {
-    return NextResponse.json({ error: "content kosong." }, { status: 400 });
-  }
-  // Guard ukuran — hindari kirim payload kelewat gede.
-  if (content.length > 600_000) {
+  if (!content) return NextResponse.json({ error: "content kosong." }, { status: 400 });
+  if (content.length > MAX_PAYLOAD_CHARS) {
     return NextResponse.json(
-      { error: "Dokumen terlalu besar untuk AI pass (>600k char)." },
+      { error: `Dokumen terlalu besar untuk AI pass (>${MAX_PAYLOAD_CHARS} char).` },
       { status: 413 },
     );
   }
 
-  const modelName = body.model || "gemini-2.5-flash";
+  const modelInfo = getModel(body.model || DEFAULT_MODEL_ID);
+  if (!modelInfo) {
+    return NextResponse.json({ error: `Model "${body.model}" tidak dikenal.` }, { status: 400 });
+  }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction: SYSTEM_PROMPT,
-      generationConfig: {
-        temperature: 0,
-        responseMimeType: "application/json",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        responseSchema: RESPONSE_SCHEMA as any,
-      },
-    });
-
-    const result = await model.generateContent(content);
-    const text = result.response.text();
-    let parsed: { calcs?: AiCalc[] };
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      return NextResponse.json(
-        { error: "Gemini balik bukan JSON valid.", raw: text.slice(0, 500) },
-        { status: 502 },
-      );
-    }
-
-    const calcs = (parsed.calcs ?? []).filter(
-      (c) => Array.isArray(c.operands) && c.operands.length > 0 && typeof c.expected === "number",
-    );
-
-    return NextResponse.json({
-      calcs,
-      model: modelName,
-      usage: result.response.usageMetadata ?? null,
-    });
+    const calcs =
+      modelInfo.provider === "gemini"
+        ? await callGemini(content, modelInfo.id)
+        : await callClaude(content, modelInfo.id);
+    return NextResponse.json({ calcs, model: modelInfo.id, provider: modelInfo.provider });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Gemini error";
+    if (e instanceof ProviderError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
+    const msg = e instanceof Error ? e.message : "AI provider error";
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 }

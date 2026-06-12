@@ -34,13 +34,13 @@ export interface AiDetectResult {
   usage: AiResponse["usage"];
 }
 
-/** Panggil API route. Throw kalau error (mis. API key belum di-set). */
-export async function aiDetect(doc: ExtractedDoc): Promise<AiDetectResult> {
+/** Panggil API route dengan model pilihan. Throw kalau error (mis. key belum di-set). */
+export async function aiDetect(doc: ExtractedDoc, modelId: string): Promise<AiDetectResult> {
   const content = buildRedactedPayload(doc);
   const res = await fetch("/api/ai-detect", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, model: modelId }),
   });
   const data: AiResponse = await res.json();
   if (!res.ok) {

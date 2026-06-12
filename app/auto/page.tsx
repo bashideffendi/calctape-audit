@@ -7,6 +7,7 @@ import { extractDocx } from "@/lib/docx-extract";
 import { detectAllInDoc, buildCalcDocument } from "@/lib/detect-pipeline";
 import { renderCalcDocument, fmtNumber } from "@/lib/calc-format";
 import { aiDetect, compareDetections, type Comparison } from "@/lib/ai-detect";
+import { AI_MODELS, DEFAULT_MODEL_ID } from "@/lib/ai-models";
 
 type Status = "idle" | "parsing" | "ready" | "error";
 type AiStatus = "idle" | "running" | "done" | "error";
@@ -24,6 +25,7 @@ export default function AutoImportPage() {
   const [aiStatus, setAiStatus] = useState<AiStatus>("idle");
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiModel, setAiModel] = useState<string>("");
+  const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODEL_ID);
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,7 +61,7 @@ export default function AutoImportPage() {
     setAiStatus("running");
     setAiError(null);
     try {
-      const result = await aiDetect(extracted);
+      const result = await aiDetect(extracted, selectedModel);
       setAiModel(result.model);
       setComparison(compareDetections(detected, result.calcs));
       setAiStatus("done");
@@ -67,7 +69,7 @@ export default function AutoImportPage() {
       setAiError(e instanceof Error ? e.message : "AI detect gagal");
       setAiStatus("error");
     }
-  }, [extracted, detected]);
+  }, [extracted, detected, selectedModel]);
 
   const onDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -229,51 +231,78 @@ export default function AutoImportPage() {
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <div className="font-bold text-indigo-900 text-sm flex items-center gap-2">
-                    ✨ Bandingin dengan Gemini
-                    {aiModel && (
-                      <span className="text-[10px] font-normal text-indigo-500">
-                        {aiModel}
-                      </span>
-                    )}
+                    ✨ Bandingin dengan AI
                   </div>
                   <div className="text-[11px] text-indigo-600/80 mt-0.5">
                     AI cari perhitungan yang regex kelewat. Nama/NIK/penyedia
                     di-redaksi dulu sebelum dikirim.
                   </div>
                 </div>
-                <button
-                  onClick={runAiCompare}
-                  disabled={aiStatus === "running"}
-                  className={`btn-sm ${
-                    aiStatus === "running"
-                      ? "bg-indigo-200 text-indigo-500 cursor-wait"
-                      : "bg-indigo-600 text-white hover:bg-indigo-700"
-                  }`}
-                >
-                  {aiStatus === "running"
-                    ? "Menganalisis…"
-                    : aiStatus === "done"
-                      ? "Jalankan lagi"
-                      : "Jalankan Gemini"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    disabled={aiStatus === "running"}
+                    className="text-xs bg-white border border-indigo-200 rounded-lg px-2 py-1.5 text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  >
+                    <optgroup label="Gemini (Google)">
+                      {AI_MODELS.filter((m) => m.provider === "gemini").map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label} — {m.note}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Claude (Anthropic)">
+                      {AI_MODELS.filter((m) => m.provider === "claude").map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label} — {m.note}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  <button
+                    onClick={runAiCompare}
+                    disabled={aiStatus === "running"}
+                    className={`btn-sm whitespace-nowrap ${
+                      aiStatus === "running"
+                        ? "bg-indigo-200 text-indigo-500 cursor-wait"
+                        : "bg-indigo-600 text-white hover:bg-indigo-700"
+                    }`}
+                  >
+                    {aiStatus === "running"
+                      ? "Menganalisis…"
+                      : aiStatus === "done"
+                        ? "Jalankan lagi"
+                        : "Jalankan AI"}
+                  </button>
+                </div>
               </div>
 
               {aiStatus === "error" && (
                 <div className="mt-3 text-xs bg-red-50 border border-red-200 rounded-lg p-3 text-red-700">
                   <div className="font-semibold">Gagal:</div>
                   <div>{aiError}</div>
-                  {aiError?.includes("GEMINI_API_KEY") && (
+                  {aiError?.includes("API_KEY") && (
                     <div className="mt-1 text-red-500">
-                      → Tambah <span className="font-mono">GEMINI_API_KEY</span>{" "}
-                      ke <span className="font-mono">.env.local</span> lalu
-                      restart server.
+                      → Tambah{" "}
+                      <span className="font-mono">
+                        {aiError.includes("ANTHROPIC") ? "ANTHROPIC_API_KEY" : "GEMINI_API_KEY"}
+                      </span>{" "}
+                      ke <span className="font-mono">.env.local</span> lalu restart
+                      server.
                     </div>
                   )}
                 </div>
               )}
 
               {comparison && aiStatus === "done" && (
-                <div className="mt-4 grid grid-cols-3 gap-3">
+                <div className="mt-3 text-[11px] text-indigo-600 font-medium">
+                  Hasil pakai <span className="font-bold">{aiModel}</span>
+                </div>
+              )}
+
+              {comparison && aiStatus === "done" && (
+                <div className="mt-2 grid grid-cols-3 gap-3">
                   <CompareStat
                     label="Regex saja"
                     sub="Gemini gak nemu"
