@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { DetectedCalc, ExtractedDoc } from "@/lib/types";
 import { extractDocx } from "@/lib/docx-extract";
@@ -26,7 +26,14 @@ export default function AutoImportPage() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiModel, setAiModel] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODEL_ID);
+  const [aiPassword, setAiPassword] = useState<string>("");
   const [comparison, setComparison] = useState<Comparison | null>(null);
+
+  // restore password dari session (sekali ketik per sesi browser)
+  useEffect(() => {
+    const saved = sessionStorage.getItem("calctape_ai_pw");
+    if (saved) setAiPassword(saved);
+  }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(async (file: File) => {
@@ -61,7 +68,9 @@ export default function AutoImportPage() {
     setAiStatus("running");
     setAiError(null);
     try {
-      const result = await aiDetect(extracted, selectedModel);
+      // simpen password di session biar gak ngetik ulang tiap run
+      if (aiPassword) sessionStorage.setItem("calctape_ai_pw", aiPassword);
+      const result = await aiDetect(extracted, selectedModel, aiPassword);
       setAiModel(result.model);
       setComparison(compareDetections(detected, result.calcs));
       setAiStatus("done");
@@ -69,7 +78,7 @@ export default function AutoImportPage() {
       setAiError(e instanceof Error ? e.message : "AI detect gagal");
       setAiStatus("error");
     }
-  }, [extracted, detected, selectedModel]);
+  }, [extracted, detected, selectedModel, aiPassword]);
 
   const onDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -238,7 +247,15 @@ export default function AutoImportPage() {
                     di-redaksi dulu sebelum dikirim.
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="password"
+                    value={aiPassword}
+                    onChange={(e) => setAiPassword(e.target.value)}
+                    disabled={aiStatus === "running"}
+                    placeholder="Password AI"
+                    className="text-xs bg-white border border-indigo-200 rounded-lg px-2 py-1.5 text-gray-700 w-28 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  />
                   <select
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}

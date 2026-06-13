@@ -47,12 +47,19 @@ export interface AiDetectResult {
   usage: AiResponse["usage"];
 }
 
-/** Panggil API route dengan model pilihan. Throw kalau error (mis. key belum di-set). */
-export async function aiDetect(doc: ExtractedDoc, modelId: string): Promise<AiDetectResult> {
+/** Panggil API route dengan model pilihan + password. Throw kalau error. */
+export async function aiDetect(
+  doc: ExtractedDoc,
+  modelId: string,
+  password?: string,
+): Promise<AiDetectResult> {
   const content = buildRedactedPayload(doc);
   const res = await fetch("/api/ai-detect", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(password ? { "x-ai-password": password } : {}),
+    },
     body: JSON.stringify({ content, model: modelId }),
   });
   // Graceful: server kadang balik HTML (mis. 504 timeout), bukan JSON.

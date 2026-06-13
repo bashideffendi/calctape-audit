@@ -122,6 +122,20 @@ class ProviderError extends Error {
 }
 
 export async function POST(req: NextRequest) {
+  // Gate password: AI pakai API key berbayar di situs publik. Kalau
+  // AI_ACCESS_PASSWORD di-set, request WAJIB bawa password yang cocok.
+  // (Kalau gak di-set — mis. lokal dev — gate dimatiin.)
+  const requiredPw = process.env.AI_ACCESS_PASSWORD;
+  if (requiredPw) {
+    const provided = req.headers.get("x-ai-password") ?? "";
+    if (provided !== requiredPw) {
+      return NextResponse.json(
+        { error: "Password AI salah atau belum dimasukkan.", code: "auth" },
+        { status: 401 },
+      );
+    }
+  }
+
   let body: { content?: string; model?: string };
   try {
     body = await req.json();
