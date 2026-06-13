@@ -1,14 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc; /* slate-50 */
+  --foreground: #0f172a; /* slate-900 */
+  --ink: #0f172a; /* slate-900 — teks utama */
+  --navy: #1e293b; /* slate-800 — surface gelap / tombol primer */
+  --muted: #64748b; /* slate-500 */
+  --border: #e2e8f0; /* slate-200 */
+  --accent: #1d4ed8; /* blue-700 — aksen interaktif, dipakai hemat */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-plus-jakarta-sans), system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
@@ -16,21 +21,31 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* === CalcTape styles (port dari Flask app) === */
-.gradient-text {
-  background: linear-gradient(135deg, #4c6ef5, #5c7cfa);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* Wordmark brand — solid ink, bukan gradient startup */
+.wordmark {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.wordmark .mark {
+  color: var(--accent);
 }
 
+/* Angka & data pakai mono — vibe tape calculator */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Tape calculator (Manual mode) — direcolor ke slate institutional === */
 .tape-col {
-  background: #fffff8;
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   min-width: 280px;
   display: flex;
   flex-direction: column;
@@ -38,10 +53,10 @@ body {
 }
 
 .tape-header {
-  background: linear-gradient(135deg, #4c6ef5, #748ffc);
+  background: var(--navy);
   color: #fff;
   padding: 8px 12px;
-  border-radius: 12px 12px 0 0;
+  border-radius: 10px 10px 0 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -59,21 +74,22 @@ body {
 }
 
 .tape-body::-webkit-scrollbar-thumb {
-  background: #dbe4ff;
+  background: #cbd5e1;
   border-radius: 2px;
 }
 
 .tape-row {
   display: flex;
-  border-bottom: 1px dashed #f1f3f5;
+  border-bottom: 1px dashed #eef2f6;
   padding: 2px 10px;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 13px;
   align-items: center;
 }
 
 .tape-row:hover {
-  background: #f8f9fa;
+  background: #f8fafc;
 }
 
 .tape-row .op {
@@ -81,6 +97,7 @@ body {
   text-align: center;
   font-weight: 700;
   flex-shrink: 0;
+  color: var(--muted);
 }
 
 .tape-row .val {
@@ -91,37 +108,38 @@ body {
 
 .tape-row .comment {
   font-size: 10px;
-  color: #adb5bd;
+  color: #94a3b8;
   font-family: var(--font-sans);
   padding-left: 24px;
   cursor: text;
 }
 
 .tape-row.subtotal-row {
-  background: #edf2ff;
+  background: #f1f5f9;
   font-weight: 700;
-  border-bottom: 2px solid #4c6ef5;
+  border-bottom: 2px solid var(--navy);
 }
 
 .tape-row.subtotal-row .val {
-  color: #4c6ef5;
+  color: var(--navy);
 }
 
 .tape-total {
-  background: #4c6ef5;
+  background: var(--navy);
   color: #fff;
   padding: 10px 12px;
-  border-radius: 0 0 12px 12px;
+  border-radius: 0 0 10px 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 
 .tape-input-area {
   background: #fff;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--border);
   padding: 8px 10px;
 }
 
@@ -130,13 +148,15 @@ body {
   background: transparent;
   outline: none;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 18px;
   text-align: right;
   font-weight: 600;
+  color: var(--ink);
 }
 
 .tape-input::placeholder {
-  color: #dee2e6;
+  color: #cbd5e1;
 }
 
 .btn-sm {
@@ -167,17 +187,17 @@ body {
 }
 
 .tab-item.active {
-  background: #4c6ef5;
+  background: var(--navy);
   color: #fff;
 }
 
 .tab-item:not(.active) {
-  background: #e9ecef;
-  color: #868e96;
+  background: #eef2f6;
+  color: var(--muted);
 }
 
 .tab-item:not(.active):hover {
-  background: #dee2e6;
+  background: #e2e8f0;
 }
 
 @media (max-width: 768px) {

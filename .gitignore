@@ -44,3 +44,6 @@ next-env.d.ts
 _*.mts
 public/_test.docx
 *.docx
+
+# preview tool config (lokal)
+.claude/
