@@ -24,15 +24,15 @@ export default function HomePage() {
       <main className="flex-1">
         <section className="max-w-3xl mx-auto px-5 pt-20 pb-14 text-center">
           <span className="inline-block text-[11px] font-semibold tracking-wide uppercase text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-3 py-1 mb-6">
-            Verifikasi aritmatika dokumen pemeriksaan
+            Telstruk dokumen pemeriksaan
           </span>
           <h1 className="text-3xl md:text-[42px] leading-tight font-extrabold text-slate-900 tracking-tight mb-4">
-            Periksa Perhitungan LHP
+            Telstruk Perhitungan LHP
             <br className="hidden md:block" /> Secara Otomatis
           </h1>
           <p className="text-slate-500 text-base md:text-lg max-w-xl mx-auto leading-relaxed">
-            Deteksi dan verifikasi setiap perhitungan dalam Laporan Hasil
-            Pemeriksaan — baik narasi maupun tabel — lalu hasilkan berkas{" "}
+            Telstruk setiap perhitungan dalam Laporan Hasil Pemeriksaan — baik
+            narasi maupun tabel — lalu hasilkan berkas{" "}
             <span className="num text-slate-700">.calc</span> yang siap menjadi
             kertas kerja.
           </p>
