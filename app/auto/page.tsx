@@ -126,26 +126,23 @@ export default function AutoImportPage() {
   }, [detected, fileName]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <header className="border-b border-[var(--border)] sticky top-0 z-50 backdrop-blur-xl bg-[#0a0e14]/70">
         <div className="max-w-5xl mx-auto px-4 h-12 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-baseline gap-2 text-slate-500 hover:text-slate-900 transition-colors"
+            className="flex items-baseline gap-2 text-[#8b96a5] hover:text-[#e6edf3] transition-colors"
           >
             <span className="text-sm">&larr;</span>
             <span className="wordmark text-sm">
               Calc<span className="mark">Tape</span>
             </span>
-            <span className="text-[11px] text-slate-400">Impor Otomatis</span>
+            <span className="text-[11px] text-[#5b6675]">Impor Otomatis</span>
           </Link>
           <div className="flex items-center gap-2">
             {status === "ready" && (
-              <button
-                onClick={downloadCalc}
-                className="btn-sm bg-slate-900 text-white hover:bg-slate-700"
-              >
+              <button onClick={downloadCalc} className="btn-sm btn-primary">
                 Unduh .calc
               </button>
             )}
@@ -159,18 +156,18 @@ export default function AutoImportPage() {
             onDrop={onDrop}
             onDragOver={onDragOver}
             onClick={() => fileInputRef.current?.click()}
-            className="border border-dashed border-slate-300 hover:border-slate-900 hover:bg-white rounded-xl p-14 text-center cursor-pointer transition-colors bg-white/50"
+            className="glass glass-hover border-dashed rounded-2xl p-16 text-center cursor-pointer"
           >
-            <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-slate-900 text-white mb-4">
+            <span className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#4f46e5] text-white mb-4 shadow-[0_8px_24px_-10px_var(--accent-glow)]">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
               </svg>
             </span>
-            <div className="text-base font-semibold text-slate-900 mb-1">
+            <div className="text-base font-semibold text-[#f3f6fb] mb-1">
               Letakkan dokumen{" "}
-              <span className="num text-blue-700">.docx</span> di sini
+              <span className="num text-[#a5b4fc]">.docx</span> di sini
             </div>
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-[#8b96a5]">
               atau klik untuk memilih berkas. Saat ini mendukung format Word
               (.docx).
             </div>
@@ -188,24 +185,24 @@ export default function AutoImportPage() {
         )}
 
         {status === "parsing" && (
-          <div className="text-center py-24 text-slate-500">
-            <div className="inline-block w-5 h-5 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin mb-3" />
+          <div className="text-center py-24 text-[#8b96a5]">
+            <div className="inline-block w-5 h-5 border-2 border-white/10 border-t-[#818cf8] rounded-full animate-spin mb-3" />
             <div className="text-sm">Memproses {fileName}…</div>
           </div>
         )}
 
         {status === "error" && (
-          <div className="bg-white border border-rose-200 rounded-xl p-6">
-            <div className="font-semibold text-rose-700 mb-1">
+          <div className="glass rounded-xl p-6 border-[rgba(251,113,133,0.3)]">
+            <div className="font-semibold text-[#fb7185] mb-1">
               Gagal memproses dokumen
             </div>
-            <div className="text-sm text-slate-600">{error}</div>
+            <div className="text-sm text-[#8b96a5]">{error}</div>
             <button
               onClick={() => {
                 setStatus("idle");
                 setError(null);
               }}
-              className="mt-4 btn-sm bg-slate-100 text-slate-700 hover:bg-slate-200"
+              className="mt-4 btn-sm btn-ghost"
             >
               Coba lagi
             </button>
@@ -215,9 +212,9 @@ export default function AutoImportPage() {
         {status === "ready" && extracted && (
           <div className="space-y-6">
             {/* Stats */}
-            <div className="bg-white rounded-xl p-4 border border-slate-200">
+            <div className="glass rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="font-semibold text-slate-900 text-sm truncate">
+                <div className="font-semibold text-[#e6edf3] text-sm truncate">
                   {fileName}
                 </div>
                 <button
@@ -230,7 +227,7 @@ export default function AutoImportPage() {
                     setComparison(null);
                     setAiError(null);
                   }}
-                  className="btn-sm bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0"
+                  className="btn-sm btn-ghost shrink-0"
                 >
                   Reset
                 </button>
@@ -239,23 +236,25 @@ export default function AutoImportPage() {
                 <Stat label="Paragraf" value={extracted.paragraphs.length} />
                 <Stat label="Tabel" value={extracted.tables.length} />
                 <Stat label="Perhitungan" value={detected.length} />
-                <Stat label="Cocok" value={stats.correct} color="text-emerald-600" />
+                <Stat label="Cocok" value={stats.correct} color="text-[#34d399]" />
                 <Stat
                   label="Selisih"
                   value={stats.off}
-                  color={stats.off > 0 ? "text-rose-600" : "text-slate-400"}
+                  color={stats.off > 0 ? "text-[#fb7185]" : "text-[#5b6675]"}
                 />
               </div>
             </div>
 
             {/* Pemeriksaan AI */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="glass rounded-xl p-4 relative overflow-hidden">
+              <div className="absolute -top-16 -right-10 w-48 h-48 rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.14),transparent_70%)] pointer-events-none" />
+              <div className="relative flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                  <div className="font-semibold text-slate-900 text-sm">
+                  <div className="font-semibold text-[#e6edf3] text-sm flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#818cf8]" />
                     Pemeriksaan AI
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5 max-w-md">
+                  <div className="text-[11px] text-[#8b96a5] mt-0.5 max-w-md">
                     Menemukan perhitungan yang lolos dari deteksi pola. Identitas
                     pada dokumen diredaksi sebelum dikirim.
                   </div>
@@ -267,13 +266,13 @@ export default function AutoImportPage() {
                     onChange={(e) => setAiPassword(e.target.value)}
                     disabled={aiStatus === "running"}
                     placeholder="Kata sandi"
-                    className="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 w-28 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    className="field text-xs px-2.5 py-1.5 w-28"
                   />
                   <select
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
                     disabled={aiStatus === "running"}
-                    className="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    className="field text-xs px-2.5 py-1.5 font-medium [&>optgroup]:bg-[#131822] [&>option]:bg-[#131822]"
                   >
                     <optgroup label="Gemini (Google)">
                       {AI_MODELS.filter((m) => m.provider === "gemini").map((m) => (
@@ -293,11 +292,7 @@ export default function AutoImportPage() {
                   <button
                     onClick={runAiCompare}
                     disabled={aiStatus === "running"}
-                    className={`btn-sm whitespace-nowrap ${
-                      aiStatus === "running"
-                        ? "bg-slate-200 text-slate-500 cursor-wait"
-                        : "bg-slate-900 text-white hover:bg-slate-700"
-                    }`}
+                    className="btn-sm btn-primary whitespace-nowrap"
                   >
                     {aiStatus === "running"
                       ? "Memeriksa…"
@@ -309,11 +304,11 @@ export default function AutoImportPage() {
               </div>
 
               {aiStatus === "error" && (
-                <div className="mt-3 text-xs bg-rose-50 border border-rose-200 rounded-lg p-3 text-rose-700">
+                <div className="relative mt-3 text-xs glass rounded-lg p-3 text-[#fb7185] border-[rgba(251,113,133,0.3)]">
                   <div className="font-semibold">Gagal</div>
-                  <div>{aiError}</div>
+                  <div className="text-[#8b96a5]">{aiError}</div>
                   {aiError?.includes("API_KEY") && (
-                    <div className="mt-1 text-rose-500">
+                    <div className="mt-1 text-[#fb7185]/80">
                       Tambahkan{" "}
                       <span className="num">
                         {aiError.includes("ANTHROPIC") ? "ANTHROPIC_API_KEY" : "GEMINI_API_KEY"}
@@ -325,19 +320,19 @@ export default function AutoImportPage() {
               )}
 
               {comparison && aiStatus === "done" && (
-                <div className="mt-3 text-[11px] text-slate-500">
+                <div className="relative mt-3 text-[11px] text-[#8b96a5]">
                   Diperiksa dengan{" "}
-                  <span className="font-semibold text-slate-700">{aiModel}</span>
+                  <span className="font-semibold text-[#c7d0dc]">{aiModel}</span>
                 </div>
               )}
 
               {comparison && aiStatus === "done" && (
                 <div className="mt-2 grid grid-cols-3 gap-3">
                   <CompareStat
-                    label="Regex saja"
-                    sub="Gemini gak nemu"
+                    label="Pola saja"
+                    sub="AI tidak menemukan"
                     value={comparison.regexOnly.length}
-                    color="text-slate-700"
+                    color="text-[#c7d0dc]"
                   />
                   <CompareStat
                     label="Keduanya"
@@ -349,14 +344,14 @@ export default function AutoImportPage() {
                     label="Hanya AI"
                     sub="Lolos dari pola"
                     value={comparison.geminiOnly.length}
-                    color="text-blue-700"
+                    color="text-[#a5b4fc]"
                   />
                 </div>
               )}
 
               {comparison && comparison.geminiOnly.length > 0 && (
-                <div className="mt-4">
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                <div className="relative mt-4">
+                  <div className="text-[11px] font-semibold text-[#8b96a5] uppercase tracking-wide mb-2">
                     Temuan tambahan dari AI — perlu ditinjau
                   </div>
                   <div className="space-y-2">
@@ -376,8 +371,8 @@ export default function AutoImportPage() {
                   onClick={() => setFilter(k)}
                   className={`btn-sm ${
                     filter === k
-                      ? "bg-slate-900 text-white"
-                      : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                      ? "bg-[#6366f1] text-white border border-[rgba(129,140,248,0.5)]"
+                      : "btn-ghost"
                   }`}
                 >
                   {k === "all"
@@ -394,7 +389,7 @@ export default function AutoImportPage() {
             {/* List */}
             <div className="space-y-3">
               {filtered.length === 0 ? (
-                <div className="text-center py-12 text-slate-400 text-sm">
+                <div className="text-center py-12 text-[#5b6675] text-sm">
                   Tidak ada perhitungan pada kategori ini.
                 </div>
               ) : (
@@ -421,10 +416,10 @@ function Stat({
 }) {
   return (
     <div>
-      <div className="text-[10px] text-slate-400 uppercase tracking-wide">
+      <div className="text-[10px] text-[#5b6675] uppercase tracking-wide">
         {label}
       </div>
-      <div className={`num text-xl font-bold ${color ?? "text-slate-900"}`}>
+      <div className={`num text-xl font-bold ${color ?? "text-[#e6edf3]"}`}>
         {value}
       </div>
     </div>
@@ -443,12 +438,12 @@ function CompareStat({
   color?: string;
 }) {
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
-      <div className={`num text-2xl font-bold ${color ?? "text-slate-900"}`}>
+    <div className="bg-white/[0.03] border border-[var(--border)] rounded-lg p-3 text-center">
+      <div className={`num text-2xl font-bold ${color ?? "text-[#e6edf3]"}`}>
         {value}
       </div>
-      <div className="text-[11px] font-semibold text-slate-700">{label}</div>
-      <div className="text-[9px] text-slate-400">{sub}</div>
+      <div className="text-[11px] font-semibold text-[#c7d0dc]">{label}</div>
+      <div className="text-[9px] text-[#5b6675]">{sub}</div>
     </div>
   );
 }
@@ -471,47 +466,51 @@ function DetectedCard({
   };
   return (
     <div
-      className={`bg-white rounded-xl border p-4 ${
-        aiTag ? "border-slate-300" : cocok ? "border-slate-200" : "border-rose-200"
+      className={`bg-white/[0.025] rounded-xl border p-4 ${
+        aiTag
+          ? "border-[rgba(129,140,248,0.35)]"
+          : cocok
+            ? "border-[var(--border)]"
+            : "border-[rgba(251,113,133,0.3)]"
       }`}
     >
       <div className="flex items-start justify-between mb-2 gap-2">
         <div className="min-w-0">
           {aiTag && (
-            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded mr-2">
+            <span className="text-[10px] font-bold text-[#a5b4fc] bg-[rgba(99,102,241,0.15)] px-1.5 py-0.5 rounded mr-2">
               AI
             </span>
           )}
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mr-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-[#8b96a5] mr-2">
             {kindLabel[detected.kind]}
           </span>
-          <span className="text-[10px] text-slate-400">{detected.location}</span>
+          <span className="text-[10px] text-[#5b6675]">{detected.location}</span>
         </div>
         <span
           className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
             cocok
-              ? "bg-emerald-50 text-emerald-700"
-              : "bg-rose-50 text-rose-700"
+              ? "bg-[rgba(52,211,153,0.12)] text-[#34d399]"
+              : "bg-[rgba(251,113,133,0.12)] text-[#fb7185]"
           }`}
         >
           {cocok ? "Cocok" : "Selisih"}
         </span>
       </div>
-      <div className="text-xs text-slate-600 mb-3 line-clamp-2">{detected.snippet}</div>
-      <div className="num text-xs grid grid-cols-3 gap-2 text-slate-700">
+      <div className="text-xs text-[#8b96a5] mb-3 line-clamp-2">{detected.snippet}</div>
+      <div className="num text-xs grid grid-cols-3 gap-2 text-[#c7d0dc]">
         <div>
-          <div className="text-[10px] text-slate-400 font-sans">Dihitung</div>
+          <div className="text-[10px] text-[#5b6675] font-sans">Dihitung</div>
           <div>{fmtNumber(computed)}</div>
         </div>
         <div>
-          <div className="text-[10px] text-slate-400 font-sans">Tertulis</div>
+          <div className="text-[10px] text-[#5b6675] font-sans">Tertulis</div>
           <div>{fmtNumber(detected.expected)}</div>
         </div>
         <div>
-          <div className="text-[10px] text-slate-400 font-sans">Selisih</div>
+          <div className="text-[10px] text-[#5b6675] font-sans">Selisih</div>
           <div
             className={
-              cocok ? "text-emerald-600" : "text-rose-600 font-semibold"
+              cocok ? "text-[#34d399]" : "text-[#fb7185] font-semibold"
             }
           >
             {fmtNumber(Math.abs(computed - detected.expected))}
